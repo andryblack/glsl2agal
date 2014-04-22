@@ -76,9 +76,13 @@ public final class Utils
 
 		
 		for(s in shader.varnames) {
-			if(s.indexOf("hoisted_") != 0) {
+			if(s.indexOf("hoisted_") != 0 && s.indexOf("unnamed_") != 0) {
 				var loc:String = shader.varnames[s];
 				glslType = shader.types[loc];
+				if (!glslType) {
+					trace("not found type in varnames " + s);
+					glslType = "vec4";
+				}
 				swiz = "";
 				arraySize = 1;
 				if(glslType.indexOf("[") >= 0) {
@@ -123,6 +127,10 @@ public final class Utils
 		}
 		for(s in shader.types) {
 			glslType = shader.types[s];
+			if (!glslType) {
+				trace("not found type in types " + s);
+				glslType = "vec4";
+			}
 			swiz = "";
 			arraySize = 1;
 			if(glslType.indexOf("[") >= 0) {
