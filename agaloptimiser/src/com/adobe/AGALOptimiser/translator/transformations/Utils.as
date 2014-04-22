@@ -61,19 +61,19 @@ public final class Utils
         return new TransformationSequenceManager(transformations);
     }
 	
-	public static function optimizeShader(shader:Object, isVS:Boolean ):Object
-	{
-		var s:String
+	public static function parseProgram(shader:Object, isVS:Boolean):Program {
 		var test:AgalParser = new AgalParser();
 		var agalsrc:String =
 			(isVS ? "vertex" : "fragment") + "_program version (1)\n" +
 			"registers\n"
-			
 		var glslType:String
 		var agalType:String
 		var swiz:String
 		var arraySize:int
 		var idx:int
+		var s:String
+		
+
 		
 		for(s in shader.varnames) {
 			if(s.indexOf("hoisted_") != 0) {
@@ -173,6 +173,13 @@ public final class Utils
 
 		var vp:Program = test.parse(agalsrc);
 		vp.main = vp.procedures[0];
+
+		return vp;	
+	}
+	public static function optimizeShader(shader:Object, isVS:Boolean ):Object
+	{
+		var vp:Program = parseProgram(shader,isVS);
+		
 		var tsm:TransformationSequenceManager = Utils.generateOptimizationMix1();
 		var i:int = tsm.transformProgram(vp);
 		var ra:RegisterAssigner = new RegisterAssigner(vp);
@@ -207,6 +214,60 @@ public final class Utils
 
 		return newshader;
 	}
+
+	public static function produceGHL(shader:Object, isVS:Boolean ):String 
+	{
+		var res:String;
+		var vp:Program = parseProgram(shader,isVS);
+
+		if (isVS) {
+			res = "#vertex\n\n";
+		} else {
+			res = "#fragment\n\n"
+		} 
+
+		var consts:String = "";
+		var vars:String = "";
+		var uniforms:String = "";
+		var inputs:String = "";
+		
+		for each(var reg:Register in vp.registers) {
+			var agalRegType:String = RegisterCategory.registerCategoryToString(reg.category, SerializationFlags.DISPLAY_AGAL_MINIASM_FORM);
+			var agalRegName:String = agalRegType + reg.baseNumber;
+			var oldAgalRegName:String = shader["varnames"][reg.name];
+			
+
+			var cv:ConstantValue = reg.valueInfo as ConstantValue;
+			if(reg.name && agalRegType=="v") {
+				vars = vars + "#var " + reg.name + "=" + agalRegName + "\n";
+			} else if(isVS && reg.name && agalRegType=="va") {
+				inputs = inputs + "#attribute " + reg.name + "=" + agalRegName + "\n";
+			} else if(!isVS && reg.name && agalRegType=="fs") {
+				inputs = inputs + "#sampler " + reg.name + "=" + agalRegName + "\n";
+			} else if(cv) {
+				consts = consts + "#const " + agalRegName + "={" 
+					+ cv.getChannelAsFloat(0).toString() + ";" 
+					+ cv.getChannelAsFloat(1).toString() + ";" 
+					+ cv.getChannelAsFloat(2).toString() + ";"
+					+ cv.getChannelAsFloat(3).toString() + "}\n";
+			} else if (isVS && reg.name && agalRegType=="vc") {
+				uniforms = uniforms + "#uniform " + reg.name + "=" + agalRegName + "\n";
+			} else if (!isVS && reg.name && agalRegType=="fc") {
+				uniforms = uniforms + "#uniform " + reg.name + "=" + agalRegName + "\n";
+			}
+			
+		}
+
+		res = res + inputs;
+		res = res + uniforms;
+		res = res + vars + "\n";
+		res = res + consts + "\n";
+		
+
+		res = res + vp.serialize(0, SerializationFlags.DISPLAY_AGAL_MINIASM_FORM);
+
+		return res;
+	} 
     
 } // Utils
 } // com.adobe.AGALOptimiser.translator.transformations

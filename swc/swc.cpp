@@ -98,6 +98,8 @@ static bool saveFile(const char* filename, const char* data)
    return true;
 }
 
+static bool produce_ghl = false;
+
 int
 main(int argc, char **argv)
 {
@@ -121,6 +123,8 @@ main(int argc, char **argv)
             vertexShader = false;
          if( 0 == strcmp("-optimize", argv[i]) )
             optimize = true;
+         if( 0 == strcmp("-ghl", argv[i]))
+            produce_ghl = true;
       }
       else
       {
@@ -191,17 +195,39 @@ extern "C" void compileShader()
 
    glslopt_cleanup(gContext);
 
-   inline_as3(
-      "import com.adobe.AGALOptimiser.translator.transformations.Utils;\n"
-      "if(optimize) {\n"
-      "    var shader:Object = null;\n"
-      "    try { shader = JSON.parse(outputstr) } catch(e:*) { }\n"
-      "    if(shader != null && shader[\"agalasm\"] != null) {\n"
-      "        shader = Utils.optimizeShader(shader, mode == 0)\n"
-      "        outputstr = JSON.stringify(shader, null, 1)\n"
-      "    }\n"
-      "}\n"
-   );
+   
+    
+    if (produce_ghl) {
+        inline_as3(
+                   "import com.adobe.AGALOptimiser.translator.transformations.Utils;\n"
+                   "if(optimize) {\n"
+                   "    var shader:Object = null;\n"
+                   "    try { shader = JSON.parse(outputstr) } catch(e:*) { }\n"
+                   "    if(shader != null && shader[\"agalasm\"] != null) {\n"
+                   "        shader = Utils.optimizeShader(shader, mode == 0)\n"
+                   "        outputstr = Utils.produceGHL(shader, mode == 0)\n"
+                   "    }\n"
+                   "} else {\n"
+                   "   var shader:Object = null;\n"
+                   "    try { shader = JSON.parse(outputstr) } catch(e:*) { }\n"
+                   "    if(shader != null && shader[\"agalasm\"] != null) {\n"
+                   "        outputstr = Utils.produceGHL(shader, mode == 0)\n"
+                   "    }\n"
+                   "}\n"
+                   );
+    } else {
+        inline_as3(
+                   "import com.adobe.AGALOptimiser.translator.transformations.Utils;\n"
+                   "if(optimize) {\n"
+                   "    var shader:Object = null;\n"
+                   "    try { shader = JSON.parse(outputstr) } catch(e:*) { }\n"
+                   "    if(shader != null && shader[\"agalasm\"] != null) {\n"
+                   "        shader = Utils.optimizeShader(shader, mode == 0)\n"
+                   "        outputstr = JSON.stringify(shader, null, 1)\n"
+                   "    }\n"
+                   "}\n"
+                   );
+    }
 
    AS3_ReturnAS3Var(outputstr);
 }
