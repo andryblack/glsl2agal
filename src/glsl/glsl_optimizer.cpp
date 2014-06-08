@@ -278,6 +278,17 @@ public:
    virtual ir_visitor_status visit(ir_variable *);
 };
 
+void write_float(char** out,float val) {
+	char tmpbuf[16];
+	snprintf(tmpbuf,15,"%f",val);
+	float tmpval = atof(tmpbuf);
+	if (fabs(val-tmpval)>0.0f) {
+		ralloc_asprintf_append(out,"\"0x%04x\"",*(reinterpret_cast<uint32_t*>(&val)));	
+	} else {
+		ralloc_asprintf_append(out,"%f",val);	
+	}
+}
+
 ir_visitor_status
 ir_constant_printing_visitor::visit(ir_variable *ir)
 {
@@ -292,11 +303,16 @@ ir_constant_printing_visitor::visit(ir_variable *ir)
    if(c->type == glsl_type::vec4_type || c->type == glsl_type::vec3_type || c->type == glsl_type::vec2_type || c->type == glsl_type::float_type) {
    		int n = c->type->vector_elements;
 
-		ralloc_asprintf_append (&shader->optimizedOutput, "%c\"%s\": [%f, %f, %f, %f]\n", emitComma ? ',' : ' ', ir->name,
-		n > 0 ? ir->constant_value->get_float_component(0) : 0.0f,
-		n > 1 ? ir->constant_value->get_float_component(1) : 0.0f,
-		n > 2 ? ir->constant_value->get_float_component(2) : 0.0f,
-		n > 3 ? ir->constant_value->get_float_component(3) : 0.0f);
+		ralloc_asprintf_append(&shader->optimizedOutput, "%c\"%s\": [", emitComma ? ',' : ' ', ir->name);
+		write_float(&shader->optimizedOutput,n > 0 ? ir->constant_value->get_float_component(0) : 0.0f);
+		ralloc_asprintf_append(&shader->optimizedOutput, "," );
+		write_float(&shader->optimizedOutput,n > 1 ? ir->constant_value->get_float_component(1) : 0.0f);
+		ralloc_asprintf_append(&shader->optimizedOutput, "," );
+		write_float(&shader->optimizedOutput,n > 2 ? ir->constant_value->get_float_component(2) : 0.0f);
+		ralloc_asprintf_append(&shader->optimizedOutput, "," );
+		write_float(&shader->optimizedOutput,n > 3 ? ir->constant_value->get_float_component(3) : 0.0f);
+		ralloc_asprintf_append(&shader->optimizedOutput, "]\n" );
+		
 		numConsts++;
    } else {
    	ralloc_asprintf_append (&shader->optimizedOutput, "%c\"%s\": UNHANDLED_CONST_TYPE\n", emitComma ? ',' : ' ', ir->name);

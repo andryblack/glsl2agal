@@ -33,6 +33,10 @@ import com.adobe.AGALOptimiser.type.Type;
 import com.adobe.AGALOptimiser.type.VectorType;
 import com.adobe.AGALOptimiser.utils.Tokenizer;
 
+import flash.utils.ByteArray;
+import flash.utils.Endian;
+
+
 use namespace nsinternal;
 
 public final class AgalParser
@@ -227,7 +231,16 @@ public final class AgalParser
         }
         else
             rewindToken();
-
+        if (numString.length == 10 && numString.indexOf("0x")==0) {
+            trace("parseHexFloat:"  + numString);
+            var tmp:uint = uint(numString);
+            var ba:ByteArray = new ByteArray();
+            ba.endian = Endian.LITTLE_ENDIAN;
+            ba.writeUnsignedInt(tmp);
+            ba.position = 0;
+            return ba.readFloat();
+        }
+        trace("parseFloat:"  + numString);
         return (sign * Number(numString));
     }
 

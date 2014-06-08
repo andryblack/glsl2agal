@@ -30,6 +30,9 @@ import com.adobe.AGALOptimiser.nsinternal;
 import com.adobe.AGALOptimiser.utils.SerializationFlags;
 
 import flash.geom.Transform;
+import flash.utils.ByteArray;
+import flash.utils.Endian;
+
 
 use namespace nsinternal;
 
@@ -60,7 +63,24 @@ public final class Utils
     
         return new TransformationSequenceManager(transformations);
     }
-	
+
+    public static function loadFloat(val:Object):Number {
+    	var strVal:String = val;
+    	var numVar:Number = val;
+    	if (strVal && strVal.indexOf("0x")==0) {
+    		trace("loadHexFloat:"  + strVal);
+    		var tmp:uint = uint(strVal);
+            var ba:ByteArray = new ByteArray();
+            ba.endian = Endian.LITTLE_ENDIAN;
+            ba.writeUnsignedInt(tmp);
+            ba.position = 0;
+            return ba.readFloat();
+    	}
+    	trace("loadFloat:" + numVar);
+    	return numVar;
+    }
+
+
 	public static function parseProgram(shader:Object, isVS:Boolean):Program {
 		var test:AgalParser = new AgalParser();
 		var agalsrc:String =
@@ -167,7 +187,10 @@ public final class Utils
 			}
 		}
 		for(s in shader.consts) {
-			agalsrc += "float-4 " + s + " const(" + shader.consts[s][0] + ", " + shader.consts[s][1] + ", "  + shader.consts[s][2] + ", "  + shader.consts[s][3] + ")\n"
+			agalsrc += "float-4 " + s + " const(" + writeFloat(loadFloat(shader.consts[s][0])) + ", " + 
+				writeFloat(loadFloat(shader.consts[s][1])) + ", "  + 
+				writeFloat(loadFloat(shader.consts[s][2])) + ", "  + 
+				writeFloat(loadFloat(shader.consts[s][3])) + ")\n"
 		}
 		
 		if(isVS)
@@ -223,6 +246,23 @@ public final class Utils
 		return newshader;
 	}
 
+	public static function writeFloat(val:Number):String {
+		var tmp:String = val.toPrecision(10);
+		trace("tmp value: " + tmp);
+		var tst:Number = Number(tmp);
+		var diff:Number = tst - val;
+		trace("diff: " + diff.toString());
+		if (Math.abs(diff)<=0) {
+			return tmp;
+		}
+		var ba:ByteArray = new ByteArray();
+		ba.endian = Endian.LITTLE_ENDIAN;
+		ba.writeFloat(val);
+		ba.position = 0;
+		var asInt:uint = ba.readUnsignedInt();
+		return "0x"+Number(asInt).toString(16);
+	}
+
 	public static function produceGHL(shader:Object, isVS:Boolean ):String 
 	{
 		var res:String;
@@ -254,10 +294,10 @@ public final class Utils
 				inputs = inputs + "#sampler " + reg.name + "=" + agalRegName + "\n";
 			} else if(cv) {
 				consts = consts + "#const " + agalRegName + "={" 
-					+ cv.getChannelAsFloat(0).toString() + ";" 
-					+ cv.getChannelAsFloat(1).toString() + ";" 
-					+ cv.getChannelAsFloat(2).toString() + ";"
-					+ cv.getChannelAsFloat(3).toString() + "}\n";
+					+ writeFloat(cv.getChannelAsFloat(0)) + ";" 
+					+ writeFloat(cv.getChannelAsFloat(1)) + ";" 
+					+ writeFloat(cv.getChannelAsFloat(2)) + ";"
+					+ writeFloat(cv.getChannelAsFloat(3)) + "}\n";
 			} else if (isVS && reg.name && agalRegType=="vc") {
 				uniforms = uniforms + "#uniform " + reg.name + "=" + agalRegName + "\n";
 			} else if (!isVS && reg.name && agalRegType=="fc") {
